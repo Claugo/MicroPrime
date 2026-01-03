@@ -1,0 +1,104 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\geometry{margin=2.5cm}
+
+\title{\textbf{GC-60 Model Overview}\\
+\large Structural framework for prime number exploration}
+
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section*{Introduction}
+
+GC-60 is an arithmetic model designed to explore prime numbers by reducing the natural numbers to a structured and admissible subset.
+The model is based on residue classes modulo 60 and is intended to support efficient exploration of large numeric ranges.
+
+GC-60 is not an algorithm by itself, but a \textbf{conceptual framework} that can be implemented in different computational forms.
+
+\section*{Motivation}
+
+Classical approaches to prime number exploration often rely on exhaustive sieving or brute-force testing over contiguous numeric intervals.
+Such methods become inefficient or impractical when the goal is to explore sparse or distant regions of the number line.
+
+GC-60 addresses this limitation by:
+\begin{itemize}[leftmargin=1.5cm]
+\item reducing the search space using arithmetic constraints;
+\item separating data construction from data interrogation;
+\item enabling localized exploration within a globally defined structure.
+\end{itemize}
+
+\section*{Residue classes modulo 60}
+
+Every integer can be expressed as:
+\[
+n = 60k + r, \quad r \in \{0,1,\dots,59\}.
+\]
+
+Among these residues, only a subset can contain prime numbers greater than 5.
+GC-60 restricts attention to the following admissible residue classes:
+\[
+\{1,7,11,13,17,19,23,29,31,37,41,43,47,49,53,59\}.
+\]
+
+This reduction eliminates all integers divisible by 2, 3, or 5 at the structural level.
+
+\section*{Archive concept}
+
+GC-60 introduces the concept of an \textbf{arithmetic archive}.
+
+The archive stores structured information derived from the admissible residue classes and supports:
+\begin{itemize}[leftmargin=1.5cm]
+\item incremental construction;
+\item persistence across executions;
+\item extension without invalidating previous data.
+\end{itemize}
+
+Each archive state defines a maximum exploration capacity, typically related to the square of the largest covered divisor.
+
+\section*{Windows of exploration}
+
+Instead of operating on a fixed numeric interval, GC-60 allows the definition of arbitrary \textbf{windows of exploration}.
+
+A window is defined by:
+\[
+[\,A, B\,] \subset \mathbb{N}
+\]
+and can be explored provided that the archive contains sufficient information to cover the required divisors up to \(\sqrt{B}\).
+
+This design enables localized exploration of very large numbers without global recomputation.
+
+\section*{Separation of concerns}
+
+A fundamental principle of GC-60 is the separation between:
+\begin{itemize}[leftmargin=1.5cm]
+\item \textbf{archive construction}, which is computationally intensive but performed incrementally;
+\item \textbf{prime extraction}, which is fast and window-specific.
+\end{itemize}
+
+This separation allows different implementations and analysis tools to coexist over the same archive.
+
+\section*{Scope and limitations}
+
+GC-60 does not aim to replace classical sieve algorithms nor to provide a general factorization method.
+Its purpose is exploratory and structural:
+to offer a different way of navigating the space of prime numbers.
+
+Formal mathematical analysis and performance guarantees are left to future work.
+
+\section*{Conclusion}
+
+GC-60 defines a structured arithmetic space in which prime numbers can be explored incrementally and selectively.
+Its value lies in the combination of modular reduction, persistence, and separation between data and interpretation.
+
+\end{document}
