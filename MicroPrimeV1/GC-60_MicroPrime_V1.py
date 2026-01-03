@@ -1,8 +1,6 @@
 # GC-60 Progetto MicroPrime - Ottimizzato Gennaio 2026 V3
 # Versione con sistema CREA/AGGIUNGI archivi
-# SOLUZIONE: Legge il riferimento direttamente dai file pickle salvati
-# Aggiunto nuova opzione aggiungi e avvisi di si conferma 
-# Inserito la possibilità di aggiungere liste archivio a partire dall'ultima
+# CORREZIONE: In modalità Aggiungi, cerca_in viene rilevato automaticamente
 import time
 import numpy as np
 import pickle
@@ -70,17 +68,23 @@ def cancella_archivi_esistenti():
 
 
 def leggi_info_ultimo_archivio(numero):
-    """Legge informazioni dall'ultimo archivio"""
+    """Legge informazioni dall'ultimo archivio includendo cerca_in"""
     try:
         with open(f"lista_{numero:04d}.pkl", "rb") as f:
             lista = pickle.load(f)
         riferimento = lista[-1][0]
         lunghezza = len(lista) - 1
         capacita = (riferimento * 60 + 10) + (lunghezza * 60)
+
+        # FORMULA CORRETTA: cerca_in = lunghezza * 60 + 10
+        # Esempio: se lunghezza = 1667, cerca_in = 1667 * 60 + 10 = 100030
+        cerca_in_originale = (lunghezza-1) * 60 + 10
+
         return {
             "riferimento": riferimento,
             "lunghezza": lunghezza,
             "capacita": capacita,
+            "cerca_in": cerca_in_originale,
         }
     except:
         return None
@@ -98,6 +102,36 @@ def richiedi_parametri():
         "crea_archivio": None,
         "modalita": None,  # "crea" o "aggiungi"
     }
+
+    def aggiorna_modalita():
+        """Chiamata quando si cambia il radio button"""
+        modalita = modalita_var.get()
+
+        if modalita == "aggiungi":
+            # Controlla se esiste archivio
+            ultimo_arch, _ = trova_archivi_esistenti()
+            if ultimo_arch >= 0:
+                # Leggi info dall'archivio
+                info = leggi_info_ultimo_archivio(ultimo_arch)
+                if info:
+                    # Imposta cerca_in automaticamente e blocca il campo
+                    entry_cerca.config(state="normal")
+                    entry_cerca.delete(0, tk.END)
+                    entry_cerca.insert(0, str(info["cerca_in"]))
+                    entry_cerca.config(state="readonly", fg="blue")
+                    label_info.config(
+                        text=f"ℹ️ Valore rilevato\ndall'archivio esistente", fg="blue"
+                    )
+                else:
+                    entry_cerca.config(state="normal", fg="black")
+                    label_info.config(text="", fg="black")
+            else:
+                entry_cerca.config(state="normal", fg="black")
+                label_info.config(text="", fg="black")
+        else:
+            # Modalità crea: campo editabile
+            entry_cerca.config(state="normal", fg="black")
+            label_info.config(text="", fg="black")
 
     def conferma():
         try:
@@ -188,13 +222,28 @@ def richiedi_parametri():
                     )
                     return
 
+                # VERIFICA CHE cerca_in SIA UGUALE
+                if cerca != info["cerca_in"]:
+                    messagebox.showerror(
+                        "Errore Parametri",
+                        f"❌ Valore 'Ricerca fino a' non corretto!\n\n"
+                        f"Valore richiesto: {info['cerca_in']:,}\n"
+                        f"Valore inserito: {cerca:,}\n\n"
+                        f"Gli archivi devono avere la stessa dimensione.\n"
+                        f"Il campo dovrebbe essere bloccato automaticamente.".replace(
+                            ",", "."
+                        ),
+                    )
+                    return
+
                 # Conferma aggiunta
                 nuova_capacita = info["capacita"] + (archivi * info["lunghezza"] * 60)
                 msg = (
                     f"📂 AGGIUNGI ARCHIVI\n\n"
                     f"Archivio attuale:\n"
                     f"• Ultimo file: lista_{ultimo_arch:04d}.pkl\n"
-                    f"• Capacità attuale: {info['capacita']:,}\n\n"
+                    f"• Capacità attuale: {info['capacita']:,}\n"
+                    f"• Ricerca fino a: {info['cerca_in']:,}\n\n"
                     f"Nuovi archivi da aggiungere: {archivi}\n"
                     f"• Nuovi file: lista_{ultimo_arch+1:04d}.pkl - lista_{ultimo_arch+archivi:04d}.pkl\n"
                     f"• Nuova capacità: {nuova_capacita:,}\n\n"
@@ -215,7 +264,7 @@ def richiedi_parametri():
     root = tk.Tk()
     root.title("Parametri MicroPrime V3")
     root.attributes("-topmost", True)
-    root.geometry("450x360")
+    root.geometry("450x400")
     root.resizable(False, False)
 
     # Titolo
@@ -234,6 +283,10 @@ def richiedi_parametri():
     entry_cerca = tk.Entry(frame, font=("Arial", 11), width=15)
     entry_cerca.insert(0, "100000")
     entry_cerca.grid(row=0, column=1, padx=10, pady=10)
+
+    # Label info per modalità aggiungi
+    label_info = tk.Label(frame, text="", font=("Arial", 9))
+    label_info.grid(row=0, column=2, padx=5)
 
     # Campo crea_archivio
     tk.Label(frame, text="Numero archivi (1-20):", font=("Arial", 11)).grid(
@@ -257,6 +310,7 @@ def richiedi_parametri():
         variable=modalita_var,
         value="crea",
         font=("Arial", 10),
+        command=aggiorna_modalita,
     ).pack(anchor="w", pady=5)
 
     tk.Radiobutton(
@@ -265,6 +319,7 @@ def richiedi_parametri():
         variable=modalita_var,
         value="aggiungi",
         font=("Arial", 10),
+        command=aggiorna_modalita,
     ).pack(anchor="w", pady=5)
 
     # Pulsante conferma
@@ -539,11 +594,16 @@ print(f"Ricerca su: {cerca_in:,}".replace(",", "."))
 print(f"{'='*60}\n")
 
 riferimento = 0
-ciclo = 1
 
-# Se stiamo aggiungendo, devo aggiustare ciclo
+# CALCOLO CICLO CORRETTO
 if modalita == "aggiungi":
-    ciclo = iterazione_start + 1
+    # Se aggiungo, ciclo deve partire dall'archivio successivo
+    ultimo_arch, _ = trova_archivi_esistenti()
+    ciclo = ultimo_arch + 2
+    print(f"🔄 Ciclo iniziale: {ciclo} (ultimo archivio: lista_{ultimo_arch:04d})")
+else:
+    # Se creo da zero, ciclo parte da 1
+    ciclo = 1
 
 for i in range(num_archivi):
     iterazione = iterazione_start + i
