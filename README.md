@@ -2,6 +2,7 @@
 
 **Experimental project for prime number exploration based on the GC-60 model**
 
+DOI: https://doi.org/10.5281/zenodo.18141354
 ---
 
 ## Overview
@@ -85,7 +86,7 @@ This design makes long-term exploration feasible even on modest hardware.
 ## What MicroPrime does not do
 
 - It is **not** a general-purpose factorization algorithm  
-- It does **not** claim optimal asymptotic complexity  
+- It does **not** claim optimal asymptotic complexity 
 - It does **not** provide definitive statistical conclusions about prime distribution  
 
 MicroPrime should be considered a **research and exploration tool**, not a closed or optimized final solution.
@@ -112,6 +113,12 @@ MicroPrime is an active experimental project.
 - A more formal and mathematical description of the GC-60 model is planned for a future publication (e.g. Zenodo)
 
 ---
+
+## Citation
+
+If you use MicroPrime or refer to this project, please cite the Zenodo record:
+
+https://doi.org/10.5281/zenodo.18141354
 
 ## License
 
