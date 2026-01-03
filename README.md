@@ -38,7 +38,7 @@ The document describes the structural principles of GC-60 independently of any s
 - the idea of localized windows of exploration.
 
 See:  
-[`docs/GC_60_overview.tex`](docs/GC_60_overview.tex)
+[`docs/GC_60_overview.tex`](docs/GC-60_overview.tex)
 
 ---
 
