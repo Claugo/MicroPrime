@@ -6,8 +6,8 @@ import json
 import math
 from datetime import datetime
 from PyQt5 import QtWidgets, uic
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QFileDialog, QTableWidgetItem
+from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtWidgets import QFileDialog, QTableWidgetItem, QApplication
 
 
 # --- CLASSE DELLA SECONDA PAGINA (STATISTICHE) ---
@@ -110,7 +110,7 @@ class FinestraDati(QtWidgets.QMainWindow):
         statistiche = {
             "metadata": {
                 "data": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "versione": "1.0",
+                "versione": "2.0",
             },
             "parametri": parametri,
             "risultati": {
@@ -275,7 +275,10 @@ class FinestraDati(QtWidgets.QMainWindow):
     def carica_statistiche(self):
         """Carica le statistiche da un file JSON"""
         filepath, _ = QFileDialog.getOpenFileName(
-            self, "Carica Statistiche", "", "JSON Files (*.json);;All Files (*)"
+            self,
+            "Carica Statistiche",
+            "",
+            "JSON Files (*.json);;All Files (*)",
         )
 
         if filepath:
@@ -316,14 +319,22 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
         # Avvio automatico lettura archivio
         self.inizializza_archivio()
 
+        # Inizializza progress bar a 0
+        try:
+            self.progressBar.setValue(0)
+            self.progressBar_2.setValue(0)
+        except:
+            pass
+
     def inizializza_archivio(self):
         """Controlla i file pickle lista_* e aggiorna le label"""
         files = glob.glob("lista_*.pkl")
         dimensione_archivio = 0
 
         if not files:
-            self.label_8.setText(f"Archivio non trovato (Dim: {dimensione_archivio})")
+            self.label_8.setText("Nessun Archivio Trovato")
             self.label_8.setStyleSheet("color: red;")
+            self.label_10.setText("0")
             return
 
         files.sort()
@@ -534,19 +545,44 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
         if parametri_validati is None:
             return
 
-        # ===== FUNZIONE CALCOLO =====
-        def esegui_calcolo(radice, inizio, fine):
+        # LEGGI STATO CHECKBOX DEBUG
+        try:
+            debug_attivo = self.radioButton.isChecked()
+        except:
+            debug_attivo = False  # Default: debug disattivato
+
+        # ===== FUNZIONE CALCOLO CON PROGRESS BAR =====
+        def esegui_calcolo(radice, inizio, fine, debug=False):
             primi_trovati = []
             divisori_salvati = [7]
             trappola = fine - inizio
             radice_max = 0
             file_usati = []
 
+            # Conta i file totali per progress bar
+            files_totali = 0
+            for i in range(1000):
+                if os.path.exists(f"lista_{i:04d}.pkl"):
+                    files_totali += 1
+                else:
+                    break
+
+            # ===== FASE 1: CARICAMENTO ARCHIVIO =====
+            print(f"\n🔍 FASE 1: Caricamento archivio ({files_totali} file)")
+
             for i in range(1000):
                 file_path = f"lista_{i:04d}.pkl"
                 if not os.path.exists(file_path):
                     break
                 file_usati.append(file_path)
+
+                # AGGIORNA PROGRESS BAR ARCHIVIO (solo colore, senza testo)
+                try:
+                    progresso = int((i + 1) / files_totali * 100)
+                    self.progressBar.setValue(progresso)
+                    QApplication.processEvents()  # Forza aggiornamento GUI
+                except Exception as e:
+                    print(f"Errore progress bar archivio: {e}")
 
                 with open(file_path, "rb") as file:
                     lista = pickle.load(file)
@@ -575,9 +611,26 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
                     if radice_max == 1:
                         break
 
+            # FORZA 100% PROGRESS BAR ARCHIVIO (anche se velocissimo)
+            try:
+                self.progressBar.setValue(100)
+                QApplication.processEvents()
+            except:
+                pass
+
+            print(
+                f"✅ Caricati {len(divisori_salvati)} divisori da {len(file_usati)} file"
+            )
+
+            # ===== FASE 2: ANALISI FINESTRA =====
             if inizio % 2 == 0:
                 inizio += 1
-            for ii in range(inizio, fine, 2):
+
+            numeri_da_analizzare = list(range(inizio, fine, 2))
+            totale_numeri = len(numeri_da_analizzare)
+            errori_debug = []
+
+            for idx, ii in enumerate(numeri_da_analizzare):
                 if ii % 3 == 0 or ii % 5 == 0:
                     continue
 
@@ -588,16 +641,46 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
                         break
 
                 if is_primo:
-                    # DEBUG: Validazione con gmpy2 (opzionale)
-                    try:
-                        import gmpy2
+                    # DEBUG OPZIONALE
+                    if debug:
+                        try:
+                            import gmpy2
 
-                        if gmpy2.is_prime(ii):
+                            if gmpy2.is_prime(ii):
+                                primi_trovati.append(ii)
+                            else:
+                                errori_debug.append(ii)
+                                print(f"⚠️ BUG RILEVATO: {ii} non è primo!")
+                        except ImportError:
                             primi_trovati.append(ii)
-                        else:
-                            print(f"⚠️ BUG: {ii}")
-                    except ImportError:
+                            print("⚠️ gmpy2 non installato, debug disabilitato")
+                    else:
                         primi_trovati.append(ii)
+
+                # AGGIORNA PROGRESS BAR FINESTRA ogni 100 numeri
+                if idx % 100 == 0:
+                    try:
+                        progresso = int((idx + 1) / totale_numeri * 100)
+                        self.progressBar_2.setValue(progresso)
+                        QApplication.processEvents()
+                    except:
+                        pass
+
+            # Completa progress bar finestra
+            try:
+                self.progressBar_2.setValue(100)
+                QApplication.processEvents()
+            except:
+                pass
+
+            # Mostra risultato debug
+            if debug and errori_debug:
+                print(f"\n{'='*60}")
+                print(f"⚠️ DEBUG: TROVATI {len(errori_debug)} ERRORI!")
+                print(f"{'='*60}")
+                for err in errori_debug:
+                    print(f"  - {err}")
+                print(f"{'='*60}\n")
 
             return primi_trovati, file_usati, len(divisori_salvati)
 
@@ -606,7 +689,16 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
         inizio = parametri_validati["inizio"]
         fine = parametri_validati["fine"]
 
-        primi_trovati, file_usati, divisori_count = esegui_calcolo(radice, inizio, fine)
+        # Reset progress bar
+        try:
+            self.progressBar.setValue(0)
+            self.progressBar_2.setValue(0)
+        except:
+            pass
+
+        primi_trovati, file_usati, divisori_count = esegui_calcolo(
+            radice, inizio, fine, debug=debug_attivo
+        )
 
         parametri = {
             "base": parametri_validati["base"],
@@ -617,6 +709,7 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
             "radice": radice,
             "file_usati": f"{len(file_usati)} file",
             "divisori_caricati": divisori_count,
+            "debug_attivo": debug_attivo,
         }
 
         self.apri_finestra_statistiche(primi_trovati, parametri)
