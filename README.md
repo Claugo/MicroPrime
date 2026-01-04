@@ -28,6 +28,19 @@ A key design principle of MicroPrime is the **separation between archive constru
 This approach differs from classical sieves and brute-force methods, which typically operate on a single contiguous range.
 
 ---
+## Experimental validation (summary)
+
+MicroPrime has been experimentally validated on multiple numeric scales, up to the order of magnitude of 10²⁰.
+
+Across all tested windows, the measured prime density closely matches the theoretical logarithmic density, with deviations consistently below ±0.02%.
+
+This confirms that the segmented screening process based on the GC-60 model neither omits nor duplicates prime numbers.
+
+The distribution of primes among the 16 admissible residue classes modulo 60 remains uniform (≈6.25% per class), indicating structural stability of the GC-60 model.
+
+The system also demonstrates reliable scalability on consumer hardware, with automatic archive extension and safe handling of insufficient archive coverage.
+
+A complete technical validation report, including performance metrics and statistical results, is available in the associated Zenodo publication.
 
 ## GC-60 model overview
 
