@@ -2,6 +2,7 @@
 
 **Experimental project for prime number exploration based on the GC-60 model**
 
+DOI: https://doi.org/10.5281/zenodo.18141354
 ---
 
 ## Overview
@@ -27,6 +28,19 @@ A key design principle of MicroPrime is the **separation between archive constru
 This approach differs from classical sieves and brute-force methods, which typically operate on a single contiguous range.
 
 ---
+## Experimental validation (summary)
+
+MicroPrime has been experimentally validated on multiple numeric scales, up to the order of magnitude of 10²⁰.
+
+Across all tested windows, the measured prime density closely matches the theoretical logarithmic density, with deviations consistently below ±0.02%.
+
+This confirms that the segmented screening process based on the GC-60 model neither omits nor duplicates prime numbers.
+
+The distribution of primes among the 16 admissible residue classes modulo 60 remains uniform (≈6.25% per class), indicating structural stability of the GC-60 model.
+
+The system also demonstrates reliable scalability on consumer hardware, with automatic archive extension and safe handling of insufficient archive coverage.
+
+A complete technical validation report, including performance metrics and statistical results, is available in the associated Zenodo publication.
 
 ## GC-60 model overview
 
@@ -85,7 +99,7 @@ This design makes long-term exploration feasible even on modest hardware.
 ## What MicroPrime does not do
 
 - It is **not** a general-purpose factorization algorithm  
-- It does **not** claim optimal asymptotic complexity  
+- It does **not** claim optimal asymptotic complexity 
 - It does **not** provide definitive statistical conclusions about prime distribution  
 
 MicroPrime should be considered a **research and exploration tool**, not a closed or optimized final solution.
@@ -112,6 +126,12 @@ MicroPrime is an active experimental project.
 - A more formal and mathematical description of the GC-60 model is planned for a future publication (e.g. Zenodo)
 
 ---
+
+## Citation
+
+If you use MicroPrime or refer to this project, please cite the Zenodo record:
+
+https://doi.org/10.5281/zenodo.18141354
 
 ## License
 
