@@ -1,3 +1,29 @@
+# ==============================================================
+# MicroPrime – modulo STUDIA
+# --------------------------------------------------------------
+# Versione : 2.0
+# Data     : 01 / 2026
+# Autore   : progetto MicroPrime
+#
+# Descrizione:
+# Questo script esegue l’analisi dei numeri primi all’interno
+# di una finestra definita, utilizzando l’archivio MicroPrime
+# come base di divisori.
+#
+# A partire dalla versione 2.0, per finestre di ampiezza elevata
+# ( > 5.000 ), il programma offre un metodo di scrematura rapida
+# basato sull’esclusione dei multipli, che consente una drastica
+# riduzione dei tempi di calcolo rispetto al metodo sequenziale
+# tradizionale.
+#
+# Il metodo standard resta disponibile per finestre più piccole
+#
+# Scopo:
+# Studio sperimentale della distribuzione dei numeri primi,
+# analisi dei gap e delle classi residue (mod 60),
+# nell’ambito del progetto MicroPrime.
+#
+# ==============================================================
 import sys
 import os
 import glob
@@ -340,7 +366,7 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
         files.sort()
 
         try:
-            with open(files[0], "rb") as f:
+            with open(files[1], "rb") as f:
                 dati_primo = pickle.load(f)
                 valore_start = (
                     dati_primo[-1][0]
@@ -357,7 +383,9 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
                 )
 
             dimensione_1 = int(valore_start * 60 + 10)
+            # print(dimensione_1)
             dimensione_2 = int(valore_end * 60 + 10)
+            # print(dimensione_2)
             dimensione_archivio = dimensione_1 + dimensione_2
             massima_esplorazione = dimensione_archivio**2
 
@@ -371,6 +399,71 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
 
         except Exception as e:
             self.label_8.setText(f"Errore lettura dati: {str(e)}")
+
+    def esegui_scrematura_rapida(self, inizio, fine, divisori_salvati):
+        """
+        Scrematura veloce con matrice - metodo ottimizzato per finestre grandi
+        Ritorna la lista dei primi candidati trovati
+        """
+        print(
+            f"🚀 Avvio scrematura rapida: [{inizio:,}".replace(",", ".")
+            + f", {fine:,}]".replace(",", ".")
+        )
+        print(f"📊 Usando {len(divisori_salvati)} divisori")
+
+        # Crea matrice di tutti i numeri nell'intervallo
+        m = fine - inizio
+        matrice = list(range(0, m))
+
+        conta_divisori = 0
+        total_divisori = len(divisori_salvati)
+
+        # Applica ogni divisore per segnare i multipli
+        for divisore in divisori_salvati:
+            conta_divisori += 1
+
+            # Aggiorna progress bar ogni 100 divisori
+            if conta_divisori % 100 == 0:
+                progresso = int((conta_divisori / total_divisori) * 100)
+                try:
+                    self.progressBar_2.setValue(progresso)
+                    QApplication.processEvents()
+                except:
+                    pass
+
+            # Calcola il primo multiplo di 'divisore' >= inizio
+            p_divisore = inizio % divisore
+            sottrai = inizio - p_divisore
+
+            if sottrai % 2 == 0:
+                primo_multiplo = inizio - p_divisore + divisore
+            else:
+                primo_multiplo = inizio - p_divisore + divisore * 2
+
+            # Segna tutti i multipli nella matrice
+            p_lista = primo_multiplo - inizio
+            while p_lista < len(matrice):
+                if 0 <= p_lista < len(matrice) and matrice[p_lista] != 0:
+                    matrice[p_lista] = 0
+                p_lista += divisore * 2
+
+        # Estrai i sopravvissuti (candidati primi)
+        sopravvissuti = []
+        for i in range(len(matrice)):
+            if matrice[i] != 0 and matrice[i] % 2 != 0:
+                val = inizio + matrice[i]
+                # Salta multipli di 3 e 5
+                if val % 3 != 0 and val % 5 != 0:
+                    sopravvissuti.append(val)
+
+        try:
+            self.progressBar_2.setValue(100)
+            QApplication.processEvents()
+        except:
+            pass
+
+        print(f"✅ Scrematura completata: {len(sopravvissuti)} candidati primi trovati")
+        return sopravvissuti
 
     def elabora_dati(self):
         """Esegue il calcolo e apre la finestra statistiche"""
@@ -570,19 +663,20 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
             # ===== FASE 1: CARICAMENTO ARCHIVIO =====
             print(f"\n🔍 FASE 1: Caricamento archivio ({files_totali} file)")
 
+            # IMPORTANTE: Imposta il massimo della progress bar alla radice
+            try:
+                self.progressBar.setMinimum(0)
+                self.progressBar.setMaximum(int(radice))
+                self.progressBar.setValue(0)
+                QApplication.processEvents()
+            except:
+                pass
+
             for i in range(1000):
                 file_path = f"lista_{i:04d}.pkl"
                 if not os.path.exists(file_path):
                     break
                 file_usati.append(file_path)
-
-                # AGGIORNA PROGRESS BAR ARCHIVIO (solo colore, senza testo)
-                try:
-                    progresso = int((i + 1) / files_totali * 100)
-                    self.progressBar.setValue(progresso)
-                    QApplication.processEvents()  # Forza aggiornamento GUI
-                except Exception as e:
-                    print(f"Errore progress bar archivio: {e}")
 
                 with open(file_path, "rb") as file:
                     lista = pickle.load(file)
@@ -592,7 +686,14 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
                         for iii in lista[ii]:
                             divisore = (riferimento * 60 + 10) + 60 * ii + iii
 
-                            if divisore < (trappola * 2):
+                            # AGGIORNA PROGRESS BAR ad ogni divisore
+                            try:
+                                self.progressBar.setValue(int(divisore))
+                                QApplication.processEvents()
+                            except:
+                                pass
+
+                            if divisore < (trappola):
                                 divisori_salvati.append(divisore)
                             elif divisore > radice:
                                 radice_max = 1
@@ -611,12 +712,71 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
                     if radice_max == 1:
                         break
 
-            # FORZA 100% PROGRESS BAR ARCHIVIO (anche se velocissimo)
+            # FORZA 100% PROGRESS BAR ARCHIVIO (imposta al valore massimo = radice)
             try:
-                self.progressBar.setValue(100)
+                self.progressBar.setValue(int(radice))
                 QApplication.processEvents()
             except:
                 pass
+            # ******************************************************************
+            # **************** Controllo Finestra Grande per uscita ************
+            # ******************************************************************
+            if trappola > 5000:
+                msg = QtWidgets.QMessageBox()
+                msg.setIcon(QtWidgets.QMessageBox.Warning)
+                msg.setWindowTitle("⚠️ Finestra Molto Grande")
+                msg.setText(
+                    f"La finestra di ricerca è molto grande ({fine - inizio:,} numeri).\n\n"
+                    f"Metodo standard potrebbe richiedere molto tempo.\n\n"
+                    f"Vuoi usare il metodo di SCREMATURA RAPIDA?".replace(",", ".")
+                )
+                msg.setInformativeText(
+                    "• SÌ: Usa scrematura rapida (consigliato)\n"
+                    "• NO: Usa metodo standard (più lento)"
+                )
+                msg.setStandardButtons(
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
+                )
+                msg.setDefaultButton(QtWidgets.QMessageBox.Yes)
+
+                risposta = msg.exec_()
+
+                if risposta == QtWidgets.QMessageBox.Yes:
+                    # ═══════════════════════════════════════════════════════
+                    # METODO RAPIDO: Scrematura con matrice
+                    # ═══════════════════════════════════════════════════════
+                    print("🚀 Metodo RAPIDO selezionato")
+                    primi_trovati = self.esegui_scrematura_rapida(
+                        inizio, fine, divisori_salvati
+                    )
+
+                    # Verifica con gmpy2 se debug attivo
+                    if debug:
+                        print("🔍 Verifica debug attiva...")
+                        try:
+                            import gmpy2
+
+                            verificati = []
+                            for primo in primi_trovati:
+                                if gmpy2.is_prime(primo):
+                                    verificati.append(primo)
+                                else:
+                                    print(f"❌ Bug trovato: {primo} non è primo!")
+                            primi_trovati = verificati
+                            print(
+                                f"✅ Verifica completata: {len(primi_trovati)} primi confermati"
+                            )
+                        except ImportError:
+                            print("⚠️ gmpy2 non disponibile, salto verifica")
+
+                    # Salta l'analisi standard
+                    skip_analisi_standard = True
+                else:
+                    print("🐌 Metodo STANDARD selezionato")
+                    skip_analisi_standard = False
+            else:
+                skip_analisi_standard = False
+            # ******************************************************************
 
             print(
                 f"✅ Caricati {len(divisori_salvati)} divisori da {len(file_usati)} file"
@@ -626,61 +786,65 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
             if inizio % 2 == 0:
                 inizio += 1
 
-            numeri_da_analizzare = list(range(inizio, fine, 2))
-            totale_numeri = len(numeri_da_analizzare)
-            errori_debug = []
+            # ═══════════════════════════════════════════════════════════
+            # METODO STANDARD: Analisi numero per numero
+            # ═══════════════════════════════════════════════════════════
+            if not skip_analisi_standard:
+                numeri_da_analizzare = list(range(inizio, fine, 2))
+                totale_numeri = len(numeri_da_analizzare)
+                errori_debug = []
 
-            for idx, ii in enumerate(numeri_da_analizzare):
-                if ii % 3 == 0 or ii % 5 == 0:
-                    continue
+                for idx, ii in enumerate(numeri_da_analizzare):
+                    if ii % 3 == 0 or ii % 5 == 0:
+                        continue
 
-                is_primo = True
-                for div in divisori_salvati:
-                    if ii % div == 0:
-                        is_primo = False
-                        break
+                    is_primo = True
+                    for div in divisori_salvati:
+                        if ii % div == 0:
+                            is_primo = False
+                            break
 
-                if is_primo:
-                    # DEBUG OPZIONALE
-                    if debug:
-                        try:
-                            import gmpy2
+                    if is_primo:
+                        # DEBUG OPZIONALE
+                        if debug:
+                            try:
+                                import gmpy2
 
-                            if gmpy2.is_prime(ii):
+                                if gmpy2.is_prime(ii):
+                                    primi_trovati.append(ii)
+                                else:
+                                    errori_debug.append(ii)
+                                    print(f"⚠️ BUG RILEVATO: {ii} non è primo!")
+                            except ImportError:
                                 primi_trovati.append(ii)
-                            else:
-                                errori_debug.append(ii)
-                                print(f"⚠️ BUG RILEVATO: {ii} non è primo!")
-                        except ImportError:
+                                print("⚠️ gmpy2 non installato, debug disabilitato")
+                        else:
                             primi_trovati.append(ii)
-                            print("⚠️ gmpy2 non installato, debug disabilitato")
-                    else:
-                        primi_trovati.append(ii)
 
-                # AGGIORNA PROGRESS BAR FINESTRA ogni 100 numeri
-                if idx % 100 == 0:
-                    try:
-                        progresso = int((idx + 1) / totale_numeri * 100)
-                        self.progressBar_2.setValue(progresso)
-                        QApplication.processEvents()
-                    except:
-                        pass
+                    # AGGIORNA PROGRESS BAR FINESTRA ogni 100 numeri
+                    if idx % 100 == 0:
+                        try:
+                            progresso = int((idx + 1) / totale_numeri * 100)
+                            self.progressBar_2.setValue(progresso)
+                            QApplication.processEvents()
+                        except:
+                            pass
 
-            # Completa progress bar finestra
-            try:
-                self.progressBar_2.setValue(100)
-                QApplication.processEvents()
-            except:
-                pass
+                # Completa progress bar finestra
+                try:
+                    self.progressBar_2.setValue(100)
+                    QApplication.processEvents()
+                except:
+                    pass
 
-            # Mostra risultato debug
-            if debug and errori_debug:
-                print(f"\n{'='*60}")
-                print(f"⚠️ DEBUG: TROVATI {len(errori_debug)} ERRORI!")
-                print(f"{'='*60}")
-                for err in errori_debug:
-                    print(f"  - {err}")
-                print(f"{'='*60}\n")
+                # Mostra risultato debug
+                if debug and errori_debug:
+                    print(f"\n{'='*60}")
+                    print(f"⚠️ DEBUG: TROVATI {len(errori_debug)} ERRORI!")
+                    print(f"{'='*60}")
+                    for err in errori_debug:
+                        print(f"  - {err}")
+                    print(f"{'='*60}\n")
 
             return primi_trovati, file_usati, len(divisori_salvati)
 

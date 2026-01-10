@@ -1,6 +1,7 @@
 # GC-60 Progetto MicroPrime - Ottimizzato Gennaio 2026 V3
 # Versione con sistema CREA/AGGIUNGI archivi
 # CORREZIONE: In modalità Aggiungi, cerca_in viene rilevato automaticamente
+# Test 08/2026 superato
 import time
 import numpy as np
 import pickle
