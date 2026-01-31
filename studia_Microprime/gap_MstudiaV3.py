@@ -1,28 +1,15 @@
 # ==============================================================
-# MicroPrime – modulo STUDIA
+# MicroPrime – modulo studia
 # --------------------------------------------------------------
-# Versione : 2.0
-# Data     : 01 / 2026
-# Autore   : progetto MicroPrime
+# Versione : 3.0.0
+# Data     : Febbraio / 2026
+# Autore   : Govi Claudio
+# Progetto : MicroPrime - GC-60
 #
-# Descrizione:
-# Questo script esegue l’analisi dei numeri primi all’interno
-# di una finestra definita, utilizzando l’archivio MicroPrime
-# come base di divisori.
+# * Struttura di lettura basata sui gap tra numeri primi
 #
-# A partire dalla versione 2.0, per finestre di ampiezza elevata
-# ( > 5.000 ), il programma offre un metodo di scrematura rapida
-# basato sull’esclusione dei multipli, che consente una drastica
-# riduzione dei tempi di calcolo rispetto al metodo sequenziale
-# tradizionale.
-#
-# Il metodo standard resta disponibile per finestre più piccole
-#
-# Scopo:
-# Studio sperimentale della distribuzione dei numeri primi,
-# analisi dei gap e delle classi residue (mod 60),
-# nell’ambito del progetto MicroPrime.
-#
+# // Documentazione ufficiale su GitHub \\
+# # ==============================================================
 # ==============================================================
 import sys
 import os
@@ -41,7 +28,7 @@ class FinestraDati(QtWidgets.QMainWindow):
     def __init__(self, main_window, dati_statistiche=None):
         super(FinestraDati, self).__init__()
         # Carichiamo il file .ui della seconda pagina
-        uic.loadUi("finestra_dati.ui", self)
+        uic.loadUi("finestra_dati_Gap.ui", self)
 
         # Salviamo un riferimento alla finestra principale
         self.main_window = main_window
@@ -332,7 +319,7 @@ class FinestraDati(QtWidgets.QMainWindow):
 class ApplicazionePrincipale(QtWidgets.QMainWindow):
     def __init__(self):
         super(ApplicazionePrincipale, self).__init__()
-        uic.loadUi("main_PRA.ui", self)
+        uic.loadUi("main_Gap.ui", self)
 
         # Personalizzazione estetica
         self.pushButton.setStyleSheet("background-color: #4CAF50; color: white;")
@@ -354,7 +341,7 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
 
     def inizializza_archivio(self):
         """Controlla i file pickle lista_* e aggiorna le label"""
-        files = glob.glob("lista_*.pkl")
+        files = glob.glob("f:/file_gap/lista_*.pkl")
         dimensione_archivio = 0
 
         if not files:
@@ -413,6 +400,9 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
 
         # Crea matrice di tutti i numeri nell'intervallo
         m = fine - inizio
+        if m > 10**7:
+            raise MemoryError(f"Intervallo troppo grande per la scrematura rapida: {m} numeri. Usa metodo standard o intervallo più piccolo.")
+        
         matrice = list(range(0, m))
 
         conta_divisori = 0
@@ -654,8 +644,8 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
 
             # Conta i file totali per progress bar
             files_totali = 0
-            for i in range(1000):
-                if os.path.exists(f"lista_{i:04d}.pkl"):
+            for i in range(10000):
+                if os.path.exists(f"f:/file_gap/lista_{i:04d}.pkl"):
                     files_totali += 1
                 else:
                     break
@@ -664,51 +654,59 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
             print(f"\n🔍 FASE 1: Caricamento archivio ({files_totali} file)")
 
             # IMPORTANTE: Imposta il massimo della progress bar alla radice
+
             try:
+                self.progress_step = 0.01          # 1%
+                self.progress_steps_total = int(1 / self.progress_step)  # 100
+                self.progress_step_size = radice * self.progress_step
+
                 self.progressBar.setMinimum(0)
-                self.progressBar.setMaximum(int(radice))
+                self.progressBar.setMaximum(self.progress_steps_total)
                 self.progressBar.setValue(0)
+
+                self._next_progress_threshold = self.progress_step_size
+                self._progress_counter = 0
+
                 QApplication.processEvents()
             except:
                 pass
 
-            for i in range(1000):
-                file_path = f"lista_{i:04d}.pkl"
+
+            for i in range(10000):
+                file_path = f"f:/file_gap/lista_{i:04d}.pkl"
                 if not os.path.exists(file_path):
                     break
                 file_usati.append(file_path)
-
+                print(file_path)
                 with open(file_path, "rb") as file:
                     lista = pickle.load(file)
-                    riferimento = lista[-1][0]
+                    riferimento = lista[-2]
+                    divisore=riferimento
+                    
+                    for ii in range(len(lista) - 2):
+                        divisore +=lista[ii]
 
-                    for ii in range(len(lista) - 1):
-                        for iii in lista[ii]:
-                            divisore = (riferimento * 60 + 10) + 60 * ii + iii
+                        # AGGIORNA PROGRESS BAR ad ogni divisore
+                        if divisore >= self._next_progress_threshold:
+                            self._progress_counter += 1
+                            self.progressBar.setValue(self._progress_counter)
 
-                            # AGGIORNA PROGRESS BAR ad ogni divisore
-                            try:
-                                self.progressBar.setValue(int(divisore))
-                                QApplication.processEvents()
-                            except:
-                                pass
-
-                            if divisore < (trappola):
-                                divisori_salvati.append(divisore)
-                            elif divisore > radice:
-                                radice_max = 1
-                                break
-                            else:
-                                c = inizio - (inizio % divisore)
-                                if c % 2 == 0:
-                                    c += divisore
-                                else:
-                                    c += divisore * 2
-                                if inizio < c < fine:
-                                    divisori_salvati.append(c)
-
-                        if radice_max == 1:
+                            self._next_progress_threshold += self.progress_step_size
+                            QApplication.processEvents()
+    
+                        if divisore < (trappola):
+                            divisori_salvati.append(divisore)
+                        elif divisore > radice:
+                            radice_max = 1
                             break
+                        else:
+                            c = inizio - (inizio % divisore)
+                            if c % 2 == 0:
+                                c += divisore
+                            else:
+                                c += divisore * 2
+                            if inizio < c < fine:
+                                    divisori_salvati.append(c)
                     if radice_max == 1:
                         break
 
@@ -860,9 +858,22 @@ class ApplicazionePrincipale(QtWidgets.QMainWindow):
         except:
             pass
 
-        primi_trovati, file_usati, divisori_count = esegui_calcolo(
-            radice, inizio, fine, debug=debug_attivo
-        )
+        try:
+            primi_trovati, file_usati, divisori_count = esegui_calcolo(
+                radice, inizio, fine, debug=debug_attivo
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.critical(
+                self,
+                "Errore durante il calcolo",
+                f"Si è verificato un errore durante l'elaborazione:\n\n{str(e)}\n\n"
+                "Possibili cause:\n"
+                "• Intervallo troppo grande (memoria insufficiente)\n"
+                "• File archivio corrotti\n"
+                "• Errore di sistema\n\n"
+                "Prova con un intervallo più piccolo o verifica l'archivio."
+            )
+            return
 
         parametri = {
             "base": parametri_validati["base"],

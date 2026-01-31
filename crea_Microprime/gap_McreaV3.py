@@ -1,7 +1,16 @@
-# GC-60 Progetto MicroPrime - Ottimizzato Gennaio 2026 V3
-# Versione con sistema CREA/AGGIUNGI archivi
-# CORREZIONE: In modalità Aggiungi, cerca_in viene rilevato automaticamente
-# Test 08/2026 superato
+# ==============================================================
+# MicroPrime – modulo crea
+# --------------------------------------------------------------
+# Versione : 3.0.0
+# Data     : Febbraio / 2026
+# Autore   : Govi Claudio
+# Progetto : MicroPrime - GC-60
+#
+# * Struttura di memorizzazione basata sui gap tra numeri primi
+#
+# // Documentazione ufficiale su GitHub \\
+# # ==============================================================
+
 import time
 import numpy as np
 import pickle
@@ -22,14 +31,15 @@ def trova_archivi_esistenti():
     Trova tutti i file lista_*.pkl nella directory.
     Ritorna: (ultimo_numero, lista_numeri_ordinata)
     """
-    files = glob.glob("lista_*.pkl")
+    files = glob.glob("f:/file_gap/lista_*.pkl")
     if not files:
         return -1, []
 
     numeri = []
     for f in files:
         try:
-            num = int(f.split("_")[1].split(".")[0])
+            num = int(f.split("_")[-1].split(".")[0])            
+            #num = int(f.split("_")[1].split(".")[0])
             numeri.append(num)
         except:
             continue
@@ -57,7 +67,7 @@ def verifica_integrita_archivi(numeri_archivi):
 
 def cancella_archivi_esistenti():
     """Cancella tutti i file lista_*.pkl"""
-    files = glob.glob("lista_*.pkl")
+    files = glob.glob("f:/file_gap/lista_*.pkl")
     count = 0
     for f in files:
         try:
@@ -71,10 +81,14 @@ def cancella_archivi_esistenti():
 def leggi_info_ultimo_archivio(numero):
     """Legge informazioni dall'ultimo archivio includendo cerca_in"""
     try:
-        with open(f"lista_{numero:04d}.pkl", "rb") as f:
+        with open(f"f:/file_gap/lista_{numero:04d}.pkl", "rb") as f:
             lista = pickle.load(f)
-        riferimento = lista[-1][0]
-        lunghezza = len(lista) - 1
+        riferimento = lista[-1]
+        
+        with open("f:/file_gap/lista_0001.pkl", "rb") as f:
+            lista_rif = pickle.load(f)
+        lunghezza = lista_rif[-1]
+        
         capacita = (riferimento * 60 + 10) + (lunghezza * 60)
 
         # FORMULA CORRETTA: cerca_in = lunghezza * 60 + 10
@@ -144,9 +158,9 @@ def richiedi_parametri():
                     "Errore", "Il valore di ricerca deve essere maggiore di 0"
                 )
                 return
-            if archivi < 1 or archivi > 20:
+            if archivi < 1 or archivi > 500:
                 messagebox.showerror(
-                    "Errore", "Il numero di archivi deve essere tra 1 e 20"
+                    "Errore", "Il numero di archivi deve essere tra 1 e 500"
                 )
                 return
 
@@ -290,7 +304,7 @@ def richiedi_parametri():
     label_info.grid(row=0, column=2, padx=5)
 
     # Campo crea_archivio
-    tk.Label(frame, text="Numero archivi (1-20):", font=("Arial", 11)).grid(
+    tk.Label(frame, text="Numero archivi (1-500):", font=("Arial", 11)).grid(
         row=1, column=0, sticky="e", padx=10, pady=10
     )
     entry_archivi = tk.Entry(frame, font=("Arial", 11), width=15)
@@ -391,19 +405,48 @@ class ArchivioMicroPrime:
         print(f"{'='*60}\n")
 
 
+def leggi_riferimento_da_pickle_con_lunghezza(iterazione,lunghezza_globale):
+    """Legge il riferimento dall'ultimo file pickle salvato"""
+    if iterazione == 0:
+        return 0
+
+    nome_file_precedente = f"f:/file_gap/lista_{iterazione-1:04d}.pkl"
+
+    try:
+        with open(nome_file_precedente, "rb") as f:
+            lista_precedente = pickle.load(f)
+        print(lista_precedente[-1])
+        riferimento_precedente = lista_precedente[-1]
+        len_lista_precedente = lunghezza_globale 
+        nuovo_rif = riferimento_precedente + len_lista_precedente
+
+        print(f"📖 Riferimento letto da {nome_file_precedente}:")
+        print(f"   - Riferimento salvato: {riferimento_precedente}")
+        print(f"   - Lunghezza lista: {len_lista_precedente}")
+        print(f"   - Nuovo riferimento: {nuovo_rif}")
+
+        return nuovo_rif
+
+    except FileNotFoundError:
+        print(f"❌ ERRORE: File {nome_file_precedente} non trovato!")
+        raise
+
+
+
+
 def leggi_riferimento_da_pickle(iterazione):
     """Legge il riferimento dall'ultimo file pickle salvato"""
     if iterazione == 0:
         return 0
 
-    nome_file_precedente = f"lista_{iterazione-1:04d}.pkl"
+    nome_file_precedente = f"f:/file_gap/lista_{iterazione-1:04d}.pkl"
 
     try:
         with open(nome_file_precedente, "rb") as f:
             lista_precedente = pickle.load(f)
-
-        riferimento_precedente = lista_precedente[-1][0]
-        len_lista_precedente = len(lista_precedente) - 1
+        print(lista_precedente[-1])
+        riferimento_precedente = lista_precedente[-1]
+        len_lista_precedente = riferimento+1 
         nuovo_rif = riferimento_precedente + len_lista_precedente
 
         print(f"📖 Riferimento letto da {nome_file_precedente}:")
@@ -431,19 +474,54 @@ def salva_lista(lista_np, nome_file, iterazione):
             sottoliste_non_vuote += 1
             ultimo_indice_non_vuoto = i
 
+    lunghezza_globale=len(lista_pickle)
+    print("lunghezza_globale ",lunghezza_globale)
+
     if iterazione == 0:
         riferimento_val = [0]
+        riferimento_gap = [9]
     else:
-        riferimento_val = [leggi_riferimento_da_pickle(iterazione)]
+        riferimento_val = [leggi_riferimento_da_pickle_con_lunghezza(iterazione, lunghezza_globale)]
 
-    lista_pickle.append(riferimento_val)
+    for i in range(len(lista_pickle)):
+        if lista_pickle[i]:
+            primo_p = (riferimento_val[0]*60 + 10) + 60*i + lista_pickle[i][0]
+            break
+    else:
+        raise ValueError("Nessun numero primo trovato in lista_pickle")
 
-    nome_pickle = nome_file.replace(".txt", ".pkl")
+    
+    
+    #primo_p=(riferimento_val[0]*60+10)+lista_pickle[0][0]        
+    #print(primo_p)
+    
+    lista_gap = []
+
+    # 1. riferimento gap e precedente
+    riferimento_gap = primo_p - 2
+    precedente = riferimento_gap
+
+    # 2. ciclo su tutte le sottoliste
+    for i in range(len(lista_pickle)):
+        for ii in lista_pickle[i]:
+            n = (riferimento_val[0]*60 + 10) + 60*i + ii
+
+            gap = n - precedente
+            lista_gap.append(gap)
+
+            precedente = n
+            #print(gap)
+
+    lista_gap.append(riferimento_gap)
+    lista_gap.append(riferimento_val[0])
+
+    nome_pickle = f"f:/file_gap/{nome_file.replace('.txt', '.pkl')}"
+    #nome_pickle = nome_file.replace(".txt", ".pkl")
     with open(nome_pickle, "wb") as file:
-        pickle.dump(lista_pickle, file)
+        pickle.dump(lista_gap, file)
 
     print(f"💾 Salvataggio: {nome_pickle}")
-    print(f"   Sottoliste: {len(lista_pickle)-1:,}".replace(",", "."))
+    print(f"   Sottoliste: {len(lista_gap)-1:,}".replace(",", "."))
     print(f"   Con primi: {sottoliste_non_vuote:,}".replace(",", "."))
     print(f"   Riferimento: {riferimento_val[0]}")
 
@@ -655,7 +733,7 @@ for i in range(num_archivi):
     )
 
     # Scrematura
-    if crea_archivio > 20 or crea_archivio < 1:
+    if crea_archivio > 500 or crea_archivio < 1:
         print("Errore: archivi fuori range")
         exit()
 
